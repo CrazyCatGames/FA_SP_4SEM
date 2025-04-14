@@ -2205,7 +2205,7 @@ binary_search_tree<tkey, tvalue, compare, tag>::insert(const value_type& value) 
 
 	++_size;
 	if (_logger) {
-		_logger->log("Successfully inserted new node", logger::severity::debug);
+		_logger->log("New node inserted", logger::severity::debug);
 	}
 
 	return std::make_pair(infix_iterator(new_node), true);
@@ -2238,7 +2238,7 @@ binary_search_tree<tkey, tvalue, compare, tag>::insert(value_type&& value) {
 
 	++_size;
 	if (_logger) {
-		_logger->log("Successfully inserted new node with move semantics", logger::severity::debug);
+		_logger->log("New node inserted", logger::severity::debug);
 	}
 
 	return std::make_pair(infix_iterator(new_node), true);
@@ -2296,7 +2296,7 @@ binary_search_tree<tkey, tvalue, compare, tag>::insert_or_assign(const value_typ
 	++_size;
 
 	if (_logger) {
-		_logger->log("Inserted or assigned new node", logger::severity::debug);
+		_logger->log("New node inserted or assigned", logger::severity::debug);
 	}
 
 	return infix_iterator(new_node);
@@ -2330,7 +2330,7 @@ binary_search_tree<tkey, tvalue, compare, tag>::insert_or_assign(value_type&& va
 
 	++_size;
 	if (_logger) {
-		_logger->log("Inserted or assigned new node with move semantics", logger::severity::debug);
+		_logger->log("New node inserted or assigned", logger::severity::debug);
 	}
 
 	return infix_iterator(new_node);
@@ -2377,7 +2377,7 @@ typename binary_search_tree<tkey, tvalue, compare, tag>::infix_iterator binary_s
 
 	node* new_node = __detail::bst_impl<tkey, tvalue, compare, tag>::create_node(*this, parent, std::move(temp));
 	if (parent == nullptr) {
-		_root = new_node;// Дерево было пустым
+		_root = new_node;
 	} else if (compare_keys(new_node->data.first, parent->data.first)) {
 		parent->left_subtree = new_node;
 	} else {
@@ -2386,7 +2386,7 @@ typename binary_search_tree<tkey, tvalue, compare, tag>::infix_iterator binary_s
 
 	++_size;
 	if (_logger) {
-		_logger->log("Emplaced or assigned new node", logger::severity::debug);
+		_logger->log("New node emplaced or assigned", logger::severity::debug);
 	}
 
 	return infix_iterator(new_node);
@@ -2414,6 +2414,7 @@ void binary_search_tree<tkey, tvalue, compare, tag>::swap(binary_search_tree& ot
 		if (_logger) {
 			_logger->log("Swapped trees (this)", logger::severity::debug);
 		}
+
 		if (other._logger) {
 			other._logger->log("Swapped trees (other)", logger::severity::debug);
 		}
@@ -2626,7 +2627,6 @@ template<typename tkey, typename tvalue, compator<tkey> compare, typename tag>
 typename binary_search_tree<tkey, tvalue, compare, tag>::infix_iterator
 binary_search_tree<tkey, tvalue, compare, tag>::begin() noexcept {
 	if (_root == nullptr) return infix_iterator(nullptr);
-
 
 	node* current = _root;
 	while (current->left_subtree != nullptr) {
