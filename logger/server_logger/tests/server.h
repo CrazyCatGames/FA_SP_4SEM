@@ -5,7 +5,7 @@
 #ifndef MP_OS_SERVER_H
 #define MP_OS_SERVER_H
 
-//#include <crow.h>
+#include <crow.h>
 #include <unordered_map>
 #include <logger.h>
 #include <shared_mutex>

@@ -8,6 +8,7 @@ target_link_libraries(
         mp_os_lggr_srvr_lggr_tests
         PRIVATE
         gtest_main
+        Crow::Crow
 )
 target_link_libraries(
         mp_os_lggr_srvr_lggr_tests
@@ -24,6 +25,7 @@ target_link_libraries(
         serv_test
         PRIVATE
         gtest_main
+        Crow::Crow
 )
 target_link_libraries(
         serv_test
