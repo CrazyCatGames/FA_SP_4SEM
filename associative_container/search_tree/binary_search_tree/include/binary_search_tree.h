@@ -2206,6 +2206,7 @@ binary_search_tree<tkey, tvalue, compare, tag>::insert(const value_type& value) 
 	if (_logger) {
 		_logger->log("New node inserted", logger::severity::debug);
 	}
+
 	__detail::bst_impl<tkey, tvalue, compare, tag>::post_insert(*this, &new_node);
 	return std::make_pair(infix_iterator(new_node), true);
 }
