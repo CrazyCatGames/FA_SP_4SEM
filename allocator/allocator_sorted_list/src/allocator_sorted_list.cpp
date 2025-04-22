@@ -58,8 +58,8 @@ allocator_sorted_list::~allocator_sorted_list() {
 	auto space_size = *reinterpret_cast<size_t*>(memory);
 	memory += sizeof(size_t);
 
-	auto* mutex_ptr = reinterpret_cast<std::mutex*>(memory);
-	mutex_ptr->~mutex();
+	auto* mutex = reinterpret_cast<std::mutex*>(memory);
+	mutex->~mutex();
 
 	parent_allocator ? parent_allocator->deallocate(_trusted_memory, space_size) : ::operator delete(_trusted_memory);
 	if (log) log->debug("Allocator destroyed.");
@@ -72,8 +72,8 @@ allocator_sorted_list::allocator_sorted_list(allocator_sorted_list&& other) noex
 }
 
 allocator_sorted_list::allocator_sorted_list(const allocator_sorted_list& other) {
-	auto memory = static_cast<char*>(other._trusted_memory);
-	memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
+	auto memory = static_cast<char*>(other._trusted_memory) +sizeof(logger*) +
+				  sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
 
 	auto space_size = *reinterpret_cast<size_t*>(memory);
 	auto parent_resource = *reinterpret_cast<std::pmr::memory_resource**>(static_cast<char*>(other._trusted_memory) +
@@ -82,8 +82,7 @@ allocator_sorted_list::allocator_sorted_list(const allocator_sorted_list& other)
 	_trusted_memory = parent_resource ? parent_resource->allocate(space_size) : ::operator new(space_size);
 	std::memcpy(_trusted_memory, other._trusted_memory, space_size);
 
-	auto dest_memory = static_cast<char*>(_trusted_memory);
-	dest_memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode) + sizeof(size_t);
+	auto dest_memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode) + sizeof(size_t);
 
 	auto* mutex_ptr = reinterpret_cast<std::mutex*>(dest_memory);
 	mutex_ptr->~mutex();
@@ -301,8 +300,8 @@ void allocator_sorted_list::do_deallocate_sm(void* at) {
 	}
 
 	if (prev_free && static_cast<char*>(prev_free) + block_metadata_size +
-									 *reinterpret_cast<size_t*>(static_cast<char*>(prev_free) + sizeof(void*)) ==
-							 block_ptr) {
+									 *reinterpret_cast<size_t*>(static_cast<char*>(prev_free) +
+																sizeof(void*)) == block_ptr) {
 		*reinterpret_cast<size_t*>(static_cast<char*>(prev_free) + sizeof(void*)) += block_metadata_size + block_size;
 
 		*reinterpret_cast<void**>(prev_free) = *reinterpret_cast<void**>(block_ptr);
@@ -349,8 +348,7 @@ inline void allocator_sorted_list::set_fit_mode(allocator_with_fit_mode::fit_mod
 	auto log = get_logger();
 	if (log) log->debug("Set_fit_mode started");
 
-	auto memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*);
+	auto memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) + sizeof(std::pmr::memory_resource*);
 
 	*reinterpret_cast<fit_mode*>(memory) = mode;
 	if (log) {
@@ -363,8 +361,9 @@ std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_
 	auto log = get_logger();
 	if (log) log->debug("Get_info started");
 
-	auto memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode) + sizeof(size_t);
+	auto memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) +
+				  sizeof(std::pmr::memory_resource*) +
+				  sizeof(fit_mode) + sizeof(size_t);
 
 	auto* mutex_ptr = reinterpret_cast<std::mutex*>(memory);
 	std::lock_guard<std::mutex> lock(*mutex_ptr);
@@ -388,16 +387,15 @@ std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_
 bool allocator_sorted_list::sorted_iterator::occupied() const noexcept {
 	if (!_current_ptr || !_trusted_memory) return false;
 
-	auto memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(void*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
+	auto memory = static_cast<char*>(_trusted_memory) + sizeof(void*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
 
 	auto space_size = *reinterpret_cast<size_t*>(memory);
 
 	if (_current_ptr >= static_cast<char*>(_trusted_memory) + space_size) return false;
 
-	memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(void*) + sizeof(std::pmr::memory_resource*) +
-			  sizeof(allocator_with_fit_mode::fit_mode) + sizeof(size_t) + sizeof(std::mutex);
+	memory = static_cast<char*>(_trusted_memory) + sizeof(void*) +
+			 sizeof(std::pmr::memory_resource*) + sizeof(allocator_with_fit_mode::fit_mode) +
+			 sizeof(size_t) + sizeof(std::mutex);
 	void* free_list_head = *reinterpret_cast<void**>(memory);
 
 	void* free_block = free_list_head;
@@ -423,8 +421,9 @@ inline std::string allocator_sorted_list::get_typename() const {
 allocator_sorted_list::sorted_free_iterator allocator_sorted_list::free_begin() const noexcept {
 	if (!_trusted_memory) return {nullptr};
 
-	auto memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode) + sizeof(size_t) + sizeof(std::mutex);
+	auto memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) +
+				  sizeof(std::pmr::memory_resource*) + sizeof(fit_mode) +
+				  sizeof(size_t) + sizeof(std::mutex);
 
 	return {*reinterpret_cast<void**>(memory)};
 }
@@ -442,8 +441,7 @@ allocator_sorted_list::sorted_iterator allocator_sorted_list::begin() const noex
 allocator_sorted_list::sorted_iterator allocator_sorted_list::end() const noexcept {
 	if (!_trusted_memory) return {nullptr};
 
-	auto memory = static_cast<char*>(_trusted_memory);
-	memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
+	auto memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
 	auto space_size = *reinterpret_cast<size_t*>(memory);
 
 	return {static_cast<char*>(_trusted_memory) + space_size};
@@ -498,8 +496,7 @@ allocator_sorted_list::sorted_iterator& allocator_sorted_list::sorted_iterator::
 		size_t block_size = *reinterpret_cast<size_t*>(static_cast<char*>(_current_ptr) + sizeof(void*));
 		_current_ptr = static_cast<char*>(_current_ptr) + block_metadata_size + block_size;
 
-		auto memory = static_cast<char*>(_trusted_memory);
-		memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
+		auto memory = static_cast<char*>(_trusted_memory) + sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(fit_mode);
 		size_t space_size = *reinterpret_cast<size_t*>(memory);
 
 		if (_current_ptr >= static_cast<char*>(_trusted_memory) + space_size) {
@@ -532,9 +529,10 @@ allocator_sorted_list::sorted_iterator::sorted_iterator(void* trusted) {
 	if (trusted) {
 		_trusted_memory = static_cast<char*>(trusted) - allocator_metadata_size;
 
-		auto memory = static_cast<char*>(_trusted_memory);
-		memory += sizeof(logger*) + sizeof(std::pmr::memory_resource*) + sizeof(allocator_with_fit_mode::fit_mode) +
-				  sizeof(size_t) + sizeof(std::mutex);
+		auto memory = static_cast<char*>(_trusted_memory) +
+					  sizeof(logger*) + sizeof(std::pmr::memory_resource*) +
+					  sizeof(allocator_with_fit_mode::fit_mode) +
+					  sizeof(size_t) + sizeof(std::mutex);
 		_free_ptr = *reinterpret_cast<void**>(memory);
 	} else {
 		_trusted_memory = nullptr;
