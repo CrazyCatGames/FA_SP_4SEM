@@ -5,7 +5,7 @@
 allocator_boundary_tags::~allocator_boundary_tags() {
 	logger *logger_instance = get_logger();
 	logger_instance->debug("Deleting of allocator started.");
-	if (_trusted_memory == nullptr) {
+	if (!_trusted_memory) {
 		logger_instance->error("Nothing to deallocate.");
 		return;
 	}
@@ -19,7 +19,7 @@ allocator_boundary_tags::~allocator_boundary_tags() {
 																			   sizeof(memory_resource *) +
 																			   sizeof(allocator_with_fit_mode::fit_mode));
 
-		if (parent_allocator != nullptr) {
+		if (parent_allocator) {
 			parent_allocator->deallocate(_trusted_memory, total_size);
 			logger_instance->trace("Memory deallocated via parent allocator.");
 		} else {
@@ -212,7 +212,7 @@ std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_block
 
 		void **first_block_ptr = reinterpret_cast<void **>(heap_start - sizeof(void *));
 		char *current_block = reinterpret_cast<char *>(*first_block_ptr);
-		while (current_block != nullptr && current_block < heap_end) {
+		while (current_block && current_block < heap_end) {
 			size_t block_size = *reinterpret_cast<size_t *>(current_block);
 			void *next_block = *reinterpret_cast<void **>(current_block + sizeof(size_t));
 			bool is_occupied = true;
@@ -223,7 +223,7 @@ std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_block
 
 		current_block = reinterpret_cast<char *>(*first_block_ptr);
 		char *prev_block_end = heap_start;
-		while (current_block != nullptr && current_block < heap_end) {
+		while (current_block && current_block < heap_end) {
 			if (current_block > prev_block_end) {
 				size_t hole_size = current_block - prev_block_end;
 				blocks_info.push_back({.block_size = hole_size, .is_block_occupied = false});
@@ -260,7 +260,7 @@ std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_block
 }
 
 inline logger *allocator_boundary_tags::get_logger() const {
-	if (_trusted_memory == nullptr) return nullptr;
+	if (!_trusted_memory) return nullptr;
 
 	return *reinterpret_cast<logger **>(_trusted_memory);
 }
@@ -287,7 +287,7 @@ bool allocator_boundary_tags::do_is_equal(const std::pmr::memory_resource &other
 
 	const auto *derived = dynamic_cast<const allocator_boundary_tags *>(&other);
 
-	if (derived == nullptr) return false;
+	if (!derived) return false;
 
 	return this->_trusted_memory == derived->_trusted_memory;
 }
@@ -343,8 +343,7 @@ void *allocator_boundary_tags::boundary_iterator::operator*() const noexcept {
 	return reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(_occupied_ptr) + sizeof(size_t));
 }
 
-allocator_boundary_tags::boundary_iterator::boundary_iterator()
-	: _occupied_ptr(nullptr), _occupied(false), _trusted_memory(nullptr) {}
+allocator_boundary_tags::boundary_iterator::boundary_iterator() : _occupied_ptr(nullptr), _occupied(false), _trusted_memory(nullptr) {}
 
 allocator_boundary_tags::boundary_iterator::boundary_iterator(void *trusted) : _trusted_memory(trusted) {
 	_occupied_ptr = trusted;
@@ -357,12 +356,12 @@ void *allocator_boundary_tags::boundary_iterator::get_ptr() const noexcept {
 }
 
 std::pmr::memory_resource *allocator_boundary_tags::get_parent_resource() const noexcept {
-	if (_trusted_memory == nullptr) return nullptr;
+	if (!_trusted_memory) return nullptr;
 	return *reinterpret_cast<std::pmr::memory_resource **>(reinterpret_cast<unsigned char *>(_trusted_memory) + sizeof(logger *));
 }
 
 inline std::mutex &allocator_boundary_tags::get_mutex() const {
-	if (_trusted_memory == nullptr) throw std::logic_error("Mutex doesn't exist.");
+	if (!_trusted_memory) throw std::logic_error("Mutex doesn't exist.");
 
 	auto *ptr = reinterpret_cast<unsigned char *>(_trusted_memory) +
 				sizeof(logger *) +
