@@ -1,6 +1,5 @@
 #include "../include/allocator_boundary_tags.h"
 
-#include <not_implemented.h>
 
 allocator_boundary_tags::~allocator_boundary_tags() {
 	logger *logger_instance = get_logger();
@@ -157,25 +156,28 @@ allocator_boundary_tags::allocator_boundary_tags(size_t space_size, std::pmr::me
 }
 
 void allocator_boundary_tags::do_deallocate_sm(void *at) {
-	logger *logger = get_logger();
+	logger* logger = get_logger();
 	logger->debug("Deallocation started.");
 	std::lock_guard<std::mutex> guard(get_mutex());
 
 	if (!at) return;
 
-	char *heap_start = reinterpret_cast<char *>(_trusted_memory) + allocator_metadata_size;
-	void *next_block = *reinterpret_cast<void **>(reinterpret_cast<char *>(at) + sizeof(size_t));
-	void *prev_block = *reinterpret_cast<void **>(reinterpret_cast<char *>(at) + sizeof(size_t) + sizeof(void *));
+	char* heap_start = reinterpret_cast<char*>(_trusted_memory) + allocator_metadata_size;
+	void* next_block = *reinterpret_cast<void**>(reinterpret_cast<char*>(at) + sizeof(size_t));
+	void* prev_block = *reinterpret_cast<void**>(reinterpret_cast<char*>(at) + sizeof(size_t) + sizeof(void*));
+
 	if (prev_block) {
-		*reinterpret_cast<void **>(reinterpret_cast<char *>(prev_block) + sizeof(size_t)) = next_block;
+		*reinterpret_cast<void**>(reinterpret_cast<char*>(prev_block) + sizeof(size_t)) = next_block;
 	} else {
-		void **first_block_ptr = reinterpret_cast<void **>(heap_start - sizeof(void *));
+		void** first_block_ptr = reinterpret_cast<void**>(heap_start - sizeof(void*));
 		*first_block_ptr = next_block;
 	}
 
 	if (next_block) {
-		*reinterpret_cast<void **>(reinterpret_cast<char *>(next_block) + sizeof(size_t) + sizeof(void *)) = prev_block;
+		*reinterpret_cast<void**>(reinterpret_cast<char*>(next_block) + sizeof(size_t) + sizeof(void*)) = prev_block;
 	}
+
+	merge_adjacent_blocks(at);
 
 	logger->debug("Deallocation finished.");
 }
@@ -550,4 +552,61 @@ void *allocator_boundary_tags::allocate_in_hole(char *address, size_t size, void
 	}
 
 	return address;
+}
+
+void allocator_boundary_tags::merge_adjacent_blocks(void* block_to_free) {
+	logger* logger = get_logger();
+	logger->debug("Merging adjacent blocks started.");
+
+	char* heap_start = reinterpret_cast<char*>(_trusted_memory) + allocator_metadata_size;
+	void** first_block_ptr = reinterpret_cast<void**>(heap_start - sizeof(void*));
+
+	char* current_block = reinterpret_cast<char*>(block_to_free) - sizeof(size_t);
+	size_t current_size = *reinterpret_cast<size_t*>(current_block);
+	char* current_end = current_block + occupied_block_metadata_size + current_size;
+
+	void* next_block = *reinterpret_cast<void**>(current_block + sizeof(size_t));
+	if (next_block) {
+		char* next_block_start = reinterpret_cast<char*>(next_block);
+		if (current_end == next_block_start) {
+			size_t next_size = *reinterpret_cast<size_t*>(next_block_start);
+			void* next_next = *reinterpret_cast<void**>(next_block_start + sizeof(size_t));
+
+			*reinterpret_cast<size_t*>(current_block) = current_size + occupied_block_metadata_size + next_size;
+			*reinterpret_cast<void**>(current_block + sizeof(size_t)) = next_next;
+
+			if (next_next) {
+				*reinterpret_cast<void**>(reinterpret_cast<char*>(next_next) + sizeof(size_t) + sizeof(void*)) = current_block;
+			}
+
+			logger->debug("Merged with next block.");
+		}
+	}
+
+	void* prev_block = *reinterpret_cast<void**>(current_block + sizeof(size_t) + sizeof(void*));
+	if (prev_block) {
+		char* prev_block_start = reinterpret_cast<char*>(prev_block);
+		size_t prev_size = *reinterpret_cast<size_t*>(prev_block_start);
+		char* prev_end = prev_block_start + occupied_block_metadata_size + prev_size;
+
+		if (prev_end == current_block) {
+			size_t new_size = prev_size + occupied_block_metadata_size + current_size;
+			void* next_block1 = *reinterpret_cast<void**>(current_block + sizeof(size_t));
+
+			*reinterpret_cast<size_t*>(prev_block_start) = new_size;
+			*reinterpret_cast<void**>(prev_block_start + sizeof(size_t)) = next_block1;
+
+			if (next_block1) {
+				*reinterpret_cast<void**>(reinterpret_cast<char*>(next_block1) + sizeof(size_t) + sizeof(void*)) = prev_block_start;
+			}
+
+			if (current_block == *first_block_ptr) {
+				*first_block_ptr = prev_block_start;
+			}
+
+			logger->debug("Merged with previous block.");
+		}
+	}
+
+	logger->debug("Merging adjacent blocks finished.");
 }

@@ -120,6 +120,8 @@ private:
 	boundary_iterator begin() const noexcept;
 
 	boundary_iterator end() const noexcept;
+
+	void merge_adjacent_blocks(void* block_to_free);
 };
 
 #endif//MATH_PRACTICE_AND_OPERATING_SYSTEMS_ALLOCATOR_ALLOCATOR_BOUNDARY_TAGS_H
