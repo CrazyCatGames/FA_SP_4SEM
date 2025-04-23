@@ -2,7 +2,6 @@
 #define MP_OS_FRACTION_H
 
 #include <big_int.h>
-#include <not_implemented.h>
 
 #include <concepts>
 
@@ -18,7 +17,11 @@ public:
 	/** Perfect forwarding ctor
      */
 	template<std::convertible_to<big_int> f, std::convertible_to<big_int> s>
-	fraction(f &&numerator, s &&denominator);
+	fraction(f &&numerator, s &&denominator) : _numerator(std::forward<f>(numerator)),
+											   _denominator(std::forward<s>(denominator)) {
+		if (_denominator == 0) throw std::invalid_argument("Denominator cannot be zero");
+		optimise();
+	}
 
 	fraction(pp_allocator<big_int::value_type> = pp_allocator<big_int::value_type>());
 

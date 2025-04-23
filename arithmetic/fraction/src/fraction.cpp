@@ -35,12 +35,6 @@ void fraction::optimise() {
 	}
 }
 
-template<std::convertible_to<big_int> f, std::convertible_to<big_int> s>
-fraction::fraction(f &&numerator, s &&denominator) : _numerator(std::forward<f>(numerator)),
-													 _denominator(std::forward<s>(denominator)) {
-	if (_denominator == 0) throw std::invalid_argument("Denominator cannot be zero");
-	optimise();
-}
 
 fraction::fraction(const pp_allocator<big_int::value_type> allocator) : _numerator(0, allocator),
 																		_denominator(1, allocator) {}
@@ -189,6 +183,36 @@ fraction fraction::tg(fraction const &epsilon) const {
 	if (cos._numerator == 0) throw std::domain_error("Tangent undefined");
 
 	return this->sin(epsilon) / cos;
+}
+
+fraction fraction::arcsin(const fraction &epsilon) const {
+	if (*this < fraction(-1, 1) || *this > fraction(1, 1)) {
+		throw std::domain_error("Arcsin is undefined for |x| > 1");
+	}
+
+	fraction x = *this;
+	fraction x_power = x;
+	fraction result = x;
+	fraction term = x;
+	int n = 1;
+
+	while (term > epsilon) {
+		fraction numerator((2 * n - 1) * (2 * n - 1), (2 * n) * (2 * n + 1));
+		x_power *= x * x;
+		term = x_power * numerator;
+		result += term;
+		++n;
+	}
+
+	return result;
+}
+
+fraction fraction::arccos(const fraction &epsilon) const {
+	if (*this < fraction(-1, 1) || *this > fraction(1, 1)) {
+		throw std::domain_error("Arccos is undefined for |x| > 1");
+	}
+
+	return fraction(22, 7) - this->arcsin(epsilon);
 }
 
 fraction fraction::ctg(fraction const &epsilon) const {
