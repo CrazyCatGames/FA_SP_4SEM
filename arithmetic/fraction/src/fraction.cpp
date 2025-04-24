@@ -145,15 +145,12 @@ fraction fraction::sin(fraction const &epsilon) const {
 	auto x = *this;
 	fraction result(0, 1);
 	fraction term = x;
-	big_int factorial = 1;
 	int n = 1;
-	while (term > epsilon) {
+	while (term >= epsilon || -term <= epsilon) {
 		result += term;
-		n += 2;
-		factorial *= n * (n - 1);
-		term *= x * x;
-		term /= fraction(factorial, 1);
-		term = -term;
+		term = term * (-x * x);
+		term /= fraction((2 * n) * (2 * n + 1), 1);
+		n++;
 	}
 
 	return result;
@@ -163,26 +160,25 @@ fraction fraction::cos(fraction const &epsilon) const {
 	auto x = *this;
 	fraction result(1, 1);
 	fraction term(1, 1);
-	big_int factorial = 1;
-	int n = 0;
-	while (term > epsilon) {
-		if (n > 0) result += term;
+	int n = 1;
+	while (true) {
+		term = term * (-x * x);
+		big_int dem = (2 * n - 1) * (2 * n);
+		term /= fraction(dem, 1);
+		if (term <= epsilon || -term >= epsilon) break;
 
-		n += 2;
-		factorial *= n * (n - 1);
-		term *= x * x;
-		term /= fraction(factorial, 1);
-		term = -term;
+		result += term;
+		n++;
 	}
 
 	return result;
 }
 
 fraction fraction::tg(fraction const &epsilon) const {
-	auto cos = this->cos(epsilon);
+	auto cos = this->cos(epsilon * epsilon);
 	if (cos._numerator == 0) throw std::domain_error("Tangent undefined");
 
-	return this->sin(epsilon) / cos;
+	return this->sin(epsilon * epsilon) / cos;
 }
 
 fraction fraction::arcsin(const fraction &epsilon) const {
@@ -191,17 +187,16 @@ fraction fraction::arcsin(const fraction &epsilon) const {
 	}
 
 	fraction x = *this;
-	fraction x_power = x;
-	fraction result = x;
+	fraction result = fraction(0, 1);
 	fraction term = x;
-	int n = 1;
+	big_int n = 1;
+	fraction x_squar = x * x;
 
-	while (term > epsilon) {
-		fraction numerator((2 * n - 1) * (2 * n - 1), (2 * n) * (2 * n + 1));
-		x_power *= x * x;
-		term = x_power * numerator;
+	while (term >= epsilon) {
 		result += term;
-		++n;
+		fraction num_dem((2_bi * n - 1) * (2_bi * n - 1), (2_bi * n) * (2_bi * n + 1));
+		term = term * x_squar * fraction(num_dem);
+		n += 1;
 	}
 
 	return result;
@@ -212,14 +207,14 @@ fraction fraction::arccos(const fraction &epsilon) const {
 		throw std::domain_error("Arccos is undefined for |x| > 1");
 	}
 
-	return fraction(22, 7) - this->arcsin(epsilon);
+	return fraction(1, 2).arcsin(epsilon) * fraction(3, 1) - this->arcsin(epsilon);
 }
 
 fraction fraction::ctg(fraction const &epsilon) const {
-	auto sine = this->sin(epsilon);
+	auto sine = this->sin(epsilon * epsilon);
 	if (sine._numerator == 0) throw std::domain_error("Cotangent undefined");
 
-	return this->cos(epsilon) / sine;
+	return this->cos(epsilon * epsilon) / sine;
 }
 
 fraction fraction::sec(fraction const &epsilon) const {
@@ -323,26 +318,22 @@ fraction fraction::log2(fraction const &epsilon) const {
 fraction fraction::ln(fraction const &epsilon) const {
 	if (_numerator <= 0 || _denominator <= 0) throw std::domain_error("Natural logarithm of non-positive number is undefined");
 
-	fraction x = *this;
-	if (x > fraction(2, 1)) {
-		return fraction(1, 1).ln(epsilon) + (x / fraction(2, 1)).ln(epsilon);
-	}
-
-	if (x < fraction(1, 2)) {
-		return -(fraction(1, 1) / x).ln(epsilon);
-	}
-
-	fraction y = x - fraction(1, 1);
-	fraction result(0, 1);
+	fraction y = (*this - fraction(1, 1)) / (*this + fraction(1, 1));
+	fraction y_squard = y * y;
 	fraction term = y;
-	int n = 1;
-	while (term > epsilon) {
-		result += fraction((n % 2 == 0 ? -1 : 1), n) * term;
-		n++;
-		term *= y;
+	fraction sum = term;
+	int dem = 1;
+
+	while (true) {
+		term *= y_squard;
+		dem += 2;
+		fraction delta = term / fraction(dem, 1);
+		if (delta <= epsilon) break;
+
+		sum += delta;
 	}
 
-	return result;
+	return sum + fraction(2, 1);
 }
 
 fraction fraction::lg(fraction const &epsilon) const {
