@@ -501,21 +501,15 @@ B_tree<tkey, tvalue, compare, t>::btree_iterator::operator->() const noexcept {
 template<typename tkey, typename tvalue, compator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++() {
-	if (_path.empty()) {
-		return *this;
-	}
+	if (_path.empty()) return *this;
 
-	// Текущий узел и позиция ключа в нём
 	auto& [node_ptr, pointer_idx] = _path.top();
 	btree_node* node = *node_ptr;
 
-	// 1) Если есть правый поддерево от текущего ключа – спускаемся в него и идём влево до листа
 	if (!node->_pointers.empty()) {
 		_path.top().second = _path.top().second + 1;
-		// перескочили на следующий указатель
 		_path.push({ &node->_pointers[_index + 1], 0 });
 		node = *(_path.top().first);
-		// спускаемся в самый левый лист
 		while (!node->_pointers.empty()) {
 			_path.push({ &node->_pointers[0], 0 });
 			node = *(_path.top().first);
@@ -524,19 +518,16 @@ B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++() {
 		return *this;
 	}
 
-	// 2) Иначе, если в этом узле ещё есть ключи правее – просто сдвигаем индекс
 	if (_index + 1 < node->_keys.size()) {
 		++_index;
 		_path.top().second = _index;
 		return *this;
 	}
 
-	// 3) Иначе поднимаемся вверх по стэку, пока не найдём узел, в котором есть непройденный ключ справа
 	_path.pop();
 	while (!_path.empty()) {
 		auto& [parent_ptr, child_idx] = _path.top();
 		btree_node* parent = *parent_ptr;
-		// если в родителе по этому индексу ещё есть ключ
 		if (child_idx < parent->_keys.size()) {
 			_index = child_idx;
 
@@ -545,7 +536,6 @@ B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++() {
 		_path.pop();
 	}
 
-	// Если вышли из корня — итератор в конец
 	_index = 0;
 	return *this;
 }
@@ -675,21 +665,15 @@ B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator->() const noexc
 template<typename tkey, typename tvalue, compator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++() {
-	if (_path.empty()) {
-		return *this;
-	}
+	if (_path.empty()) return *this;
 
-	// Текущий узел и позиция ключа в нём
 	auto& [node_ptr, pointer_idx] = _path.top();
 	btree_node* node = *node_ptr;
 
-	// 1) Если есть правый поддерево от текущего ключа – спускаемся в него и идём влево до листа
 	if (!node->_pointers.empty()) {
 		_path.top().second = _path.top().second + 1;
-		// перескочили на следующий указатель
 		_path.push({ &node->_pointers[_index + 1], 0 });
 		node = *(_path.top().first);
-		// спускаемся в самый левый лист
 		while (!node->_pointers.empty()) {
 			_path.push({ &node->_pointers[0], 0 });
 			node = *(_path.top().first);
@@ -698,19 +682,16 @@ B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++() {
 		return *this;
 	}
 
-	// 2) Иначе, если в этом узле ещё есть ключи правее – просто сдвигаем индекс
 	if (_index + 1 < node->_keys.size()) {
 		++_index;
 		_path.top().second = _index;
 		return *this;
 	}
 
-	// 3) Иначе поднимаемся вверх по стэку, пока не найдём узел, в котором есть непройденный ключ справа
 	_path.pop();
 	while (!_path.empty()) {
 		auto& [parent_ptr, child_idx] = _path.top();
 		btree_node* parent = *parent_ptr;
-		// если в родителе по этому индексу ещё есть ключ
 		if (child_idx < parent->_keys.size()) {
 			_index = child_idx;
 
@@ -719,7 +700,6 @@ B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++() {
 		_path.pop();
 	}
 
-	// Если вышли из корня — итератор в конец
 	_index = 0;
 	return *this;
 }
